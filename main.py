@@ -19,7 +19,7 @@ def on_publish(client: mqtt.Client, userdata, mid, reason_code, properties):
     try:
         userdata.remove(mid)
     except KeyError:
-        print("Failed")
+        pass
 
 # helper function to make a client
 def make_client(id: str, broker: str, port: int):
@@ -61,8 +61,23 @@ def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg):
     # publish and wait for acknowledgement
     msg = mqttc.publish(topic, string, qos=1)
     unacked_publish.add(msg.mid)
-    time.sleep(0.5)
+    time.sleep(0.01)
     msg.wait_for_publish()
+
+def random_disconnect(mqttc: mqtt.Client, id: str, broker: str, port: int) -> mqtt.Client:
+    rng = random.random()
+    if rng > 0.99:
+        mqttc.disconnect()
+        print("disconnected")
+        time.sleep(2 * random.random() + 1)
+        c = make_client(id, broker, port)
+        c.user_data_set(set())
+        c.loop_start()
+        print("reconnected")
+        return c
+
+    return mqttc
+
 
 def main():
     # get the input from the user
@@ -75,7 +90,7 @@ def main():
         print("Failed defaulting to 1883")
     topic = (lambda topic : topic if len(topic) > 0 else "test/mqtt")(
         input("Enter Topic: ").strip())
-    print(f"Topic set to: {topic}")
+    print(f"Topic set to: '{topic}'")
     id = f'python-mqtt-test1'
 
     # create and connect to broker
@@ -91,6 +106,7 @@ def main():
     while True: # keep sending data until user stops with keyboard interrupt
         try: 
             send_message(mqttc, unacked_publish, topic, str(port))
+            mqttc = random_disconnect(mqttc, id, broker, port)
         except KeyboardInterrupt:
             break
 

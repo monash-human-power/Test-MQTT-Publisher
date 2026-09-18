@@ -1,6 +1,7 @@
 # Monash Human Power - Test MQTT Publisher
 
 A basic python script that simulate the phone that publishes the to the MQTT Broker
+Used while the phone app is still in development for the T2
 
 ## How to use
 
@@ -17,6 +18,6 @@ A basic python script that simulate the phone that publishes the to the MQTT Bro
 
 ## TODO
 
-- [] Add more changing values
-- [] Have an option to simulate actual values for a bike
-- [] Have more sophisticated message sending (To be confirmed)
+- [ ] Add more changing values
+- [ ] Have an option to simulate actual values for a bike
+- [ ] Have more sophisticated message sending (To be confirmed)
