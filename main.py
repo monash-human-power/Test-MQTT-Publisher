@@ -5,6 +5,7 @@
 import paho.mqtt.client as mqtt
 import time
 import random
+from datetime import datetime
 import pandas as pd
 import os
 
@@ -40,6 +41,10 @@ def get_hhmmss() -> str:
     # returns a string that has the time time formatted properly
     return time.strftime("%H:%M:%S", time.localtime())
 
+def csv_time_to_iso(csv_timestamp: str) -> str:
+    dt = datetime.strptime(csv_timestamp, "%Y-%m-%d %H:%M:%S")
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.500Z")
+
 def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg, rand=False, data=None, idx=0):
     # method to send the message to the mqtt broker
     randSpeed = round(random.random() * 60, 2)
@@ -73,7 +78,7 @@ def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg, rand=False, da
         "batteryVoltage": {{ "value": 48.2, "unit": "V" }},
         "gps": {{ "latitude": {4}, "longitude": {5}, "altitude": {6}, "speed": {7} }}
     }}
-}}\n'''.format(data["time"][idx],
+}}\n'''.format(csv_time_to_iso(data["time"][idx]),
                (lambda s: 0 if s < 1 else s)(data["SPEED_mps"][idx] * 3.6),
                data["CADENCE"][idx],
                data["POWER"][idx],
@@ -86,13 +91,13 @@ def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg, rand=False, da
     # publish and wait for acknowledgement
     msg = mqttc.publish(topic, string, qos=1)
     unacked_publish.add(msg.mid)
-    time.sleep(1)
+    time.sleep(0.1)
     msg.wait_for_publish()
     return idx + 1
 
 def random_disconnect(mqttc: mqtt.Client, id: str, broker: str, port: int) -> mqtt.Client:
     rng = random.random()
-    if rng > 0.99:
+    if rng > 1:
         mqttc.disconnect()
         print("disconnected")
         time.sleep(2 * random.random() + 1)
