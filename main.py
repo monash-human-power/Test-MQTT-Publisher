@@ -5,6 +5,8 @@
 import paho.mqtt.client as mqtt
 import time
 import random
+import pandas as pd
+import os
 
 # on successful connection, print it out
 def on_connect(client: mqtt.Client, userdata, flags, reason_code, properties):
@@ -38,10 +40,11 @@ def get_hhmmss() -> str:
     # returns a string that has the time time formatted properly
     return time.strftime("%H:%M:%S", time.localtime())
 
-def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg):
+def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg, rand=False, data=None, idx=0):
     # method to send the message to the mqtt broker
     randSpeed = round(random.random() * 60, 2)
-    string = '''
+    if rand or data is None:
+        string = '''
 {{
     "type": "telemetry",
     "timestamp": "2026-08-25T{0}.500Z",
@@ -51,18 +54,41 @@ def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg):
         "cadence": {{ "value": 91, "unit": "rpm" }},
         "power": {{ "value": {2}, "unit": "W" }},
         "batteryVoltage": {{ "value": 48.2, "unit": "V" }},
-        "gps": {{ "latitude": -37.9105, "longitude": 145.1362, "altitude": 35.2, "speed": 42.7 }}
+        "gps": {{ "latitude": -38.12539467, "longitude": 145.31497998, "altitude": 35.2, "speed": 42.7 }}
     }}
 }}\n'''.format(get_hhmmss(),
                # randomly change the speed and power
                randSpeed,
                round(randSpeed * 10 * (1+(random.random() - 0.5)/10)), 2)
+    else:
+        string = '''
+{{
+    "type": "telemetry",
+    "timestamp": "{0}",
+    "sessionId": "mock-session-001",
+    "data": {{
+        "speed": {{ "value": {1}, "unit": "km/h" }},
+        "cadence": {{ "value": {2}, "unit": "rpm" }},
+        "power": {{ "value": {3}, "unit": "W" }},
+        "batteryVoltage": {{ "value": 48.2, "unit": "V" }},
+        "gps": {{ "latitude": {4}, "longitude": {5}, "altitude": {6}, "speed": {7} }}
+    }}
+}}\n'''.format(data["time"][idx],
+               (lambda s: 0 if s < 1 else s)(data["SPEED_mps"][idx] * 3.6),
+               data["CADENCE"][idx],
+               data["POWER"][idx],
+               data["LATITUDE"][idx],
+               data["LONGITUDE"][idx],
+               data["ALTITUDE"][idx],
+               (lambda s: 0 if s < 1 else s)(data["SPEED_mps_gps"][idx] * 3.6),
+               )
 
     # publish and wait for acknowledgement
     msg = mqttc.publish(topic, string, qos=1)
     unacked_publish.add(msg.mid)
-    time.sleep(0.01)
+    time.sleep(1)
     msg.wait_for_publish()
+    return idx + 1
 
 def random_disconnect(mqttc: mqtt.Client, id: str, broker: str, port: int) -> mqtt.Client:
     rng = random.random()
@@ -92,6 +118,14 @@ def main():
         input("Enter Topic: ").strip())
     print(f"Topic set to: '{topic}'")
     id = f'python-mqtt-test1'
+    useRandom = (lambda r : True if r.strip().lower() == "y" else False)(
+            input("Use Random Values (y/n)? ").strip())
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, 'CaseyGPSData.csv')
+
+    data = pd.read_csv(csv_path)
+    idx = 880
 
     # create and connect to broker
     mqttc = make_client(id, broker, port)
@@ -105,7 +139,13 @@ def main():
 
     while True: # keep sending data until user stops with keyboard interrupt
         try: 
-            send_message(mqttc, unacked_publish, topic, str(port))
+            idx = send_message(mqttc, 
+                               unacked_publish, 
+                               topic, 
+                               str(port), 
+                               rand=useRandom, 
+                               data=data, 
+                               idx=idx)
             mqttc = random_disconnect(mqttc, id, broker, port)
         except KeyboardInterrupt:
             break
