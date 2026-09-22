@@ -70,15 +70,16 @@ def send_message(mqttc: mqtt.Client, unacked_publish, topic, msg, rand=False, da
 {{
     "type": "telemetry",
     "timestamp": "{0}",
-    "sessionId": "mock-session-001",
+    "sessionId": "{1}",
     "data": {{
-        "speed": {{ "value": {1}, "unit": "km/h" }},
-        "cadence": {{ "value": {2}, "unit": "rpm" }},
-        "power": {{ "value": {3}, "unit": "W" }},
+        "speed": {{ "value": {2}, "unit": "km/h" }},
+        "cadence": {{ "value": {3}, "unit": "rpm" }},
+        "power": {{ "value": {4}, "unit": "W" }},
         "batteryVoltage": {{ "value": 48.2, "unit": "V" }},
-        "gps": {{ "latitude": {4}, "longitude": {5}, "altitude": {6}, "speed": {7} }}
+        "gps": {{ "latitude": {5}, "longitude": {6}, "altitude": {7}, "speed": {8} }}
     }}
 }}\n'''.format(csv_time_to_iso(data["time"][idx]),
+               topic.split('/')[1] if topic.count('/') >= 2 else "mock-session-001",
                (lambda s: 0 if s < 1 else s)(data["SPEED_mps"][idx] * 3.6),
                data["CADENCE"][idx],
                data["POWER"][idx],
